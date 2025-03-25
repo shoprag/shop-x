@@ -139,24 +139,23 @@ export default class XShop implements Shop {
     private async fetchUserTweets(userId: string, startTime?: string): Promise<TweetWithAuthor[]> {
         console.log(`Fetching tweets for user ID ${userId} since ${startTime || 'beginning'}`);
         const tweetsWithAuthors: TweetWithAuthor[] = [];
-        const timeline = this.twitter.v2.userTimeline(userId, {
+        const timeline = await this.twitter.v2.userTimeline(userId, {
             start_time: startTime,
             max_results: 100,
             expansions: ['author_id', 'in_reply_to_user_id'],
             'tweet.fields': ['created_at', 'text', 'in_reply_to_user_id'],
             'user.fields': ['username']
         });
+        const timelineIterator = timeline.fetchAndIterate()
 
-        for await (const page of timeline as any) {
-            const users = page.includes?.users || [];
-            for (const tweet of page.data || []) {
-                const author = users.find(u => u.id === tweet.author_id);
-                const replyToUser = tweet.in_reply_to_user_id
-                    ? users.find(u => u.id === tweet.in_reply_to_user_id)
-                    : undefined;
-                if (author) {
-                    tweetsWithAuthors.push({ tweet, author, replyToUser });
-                }
+        for await (const [tweet, iter] of timelineIterator) {
+            const users = iter.includes?.users || [];
+            const author = users.find(u => u.id === tweet.author_id);
+            const replyToUser = tweet.in_reply_to_user_id
+                ? users.find(u => u.id === tweet.in_reply_to_user_id)
+                : undefined;
+            if (author) {
+                tweetsWithAuthors.push({ tweet, author, replyToUser });
             }
         }
         return tweetsWithAuthors;
@@ -178,18 +177,17 @@ export default class XShop implements Shop {
             'tweet.fields': ['created_at', 'text', 'in_reply_to_user_id'],
             'user.fields': ['username']
         });
+        const searchIterator = (await search).fetchAndIterate()
 
         const tweetsWithAuthors: TweetWithAuthor[] = [];
-        for await (const page of search as any) {
-            const users = page.includes?.users || [];
-            for (const tweet of page.data || []) {
-                const author = users.find(u => u.id === tweet.author_id);
-                const replyToUser = tweet.in_reply_to_user_id
-                    ? users.find(u => u.id === tweet.in_reply_to_user_id)
-                    : undefined;
-                if (author) {
-                    tweetsWithAuthors.push({ tweet, author, replyToUser });
-                }
+        for await (const [tweet, iter] of searchIterator) {
+            const users = iter.includes?.users || [];
+            const author = users.find(u => u.id === tweet.author_id);
+            const replyToUser = tweet.in_reply_to_user_id
+                ? users.find(u => u.id === tweet.in_reply_to_user_id)
+                : undefined;
+            if (author) {
+                tweetsWithAuthors.push({ tweet, author, replyToUser });
             }
         }
         return tweetsWithAuthors;
